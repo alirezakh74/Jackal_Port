@@ -1,9 +1,14 @@
+#test big maps
+TILESET Background "assets/images/maps/Tiled/tileset-map1-8x8-2p16c-u-8x8-1p16c-s.bmp" BEST ALL
+MAP level_map_1 "assets/images/maps/Tiled/map1.tmx" Background BEST 0
+PALETTE level_map_1_pallete "assets/images/maps/Tiled/tileset-map1-8x8-2p16c-u-8x8-1p16c-s.bmp"
+
 #SPRITE player
 #IMAGE skull "assets/images/skull-half-8x8-1p16c-s.bmp"
 #TILESET our_tileset "tileset_1.png" BEST ALL
 #MAP our_level_map "layer_1.png" our_tileset BEST 0
 #PALETTE our_pallete "layer_1.png"
-#WAV music "assets/sounds/Arash Razmi - Yade Ghadim2.wav" XGM2
+#WAV music "assets/sounds/audio_8bit.wav" XGM2
 
 #images
 IMAGE logo "assets/images/Jackal1.bmp"

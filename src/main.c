@@ -2,8 +2,8 @@
 #include <resources.h>
 #include <font.h>
 
-//u16 ind = TILE_USER_INDEX;
-//Map* level_1_map;
+u16 ind = TILE_USER_INDEX;
+Map* level_1_map;
 
 Sprite* jeep_cursor;
 
@@ -58,7 +58,7 @@ void VDP_drawTextOffset(VDPPlane plane, const u16 *vram_offsets, u16 len, u16 fi
 		//KLog_S1("temp: ", temp);
 		//KLog_S1("curTile: ", curTileInd);
 		
-		VDP_setTileMapXY(plane, TILE_ATTR_FULL(PAL0,0,FALSE,FALSE,curTileInd), curX, y);
+		VDP_setTileMapXY(plane, TILE_ATTR_FULL(PAL2,0,FALSE,FALSE,curTileInd), curX, y);
 		i++;
 		curX--;
 	}
@@ -98,11 +98,17 @@ void handleInput()
     }
 }
 
+int x = 0, y = 0;
 int main()
 {
     VDP_init();
+
+    VDP_loadTileSet(&Background, ind, DMA);
+    level_1_map = MAP_create(&level_map_1, BG_B, TILE_ATTR_FULL(PAL0,false,false,false,ind));
+    PAL_setPalette(PAL0, level_map_1_pallete.data, DMA);
+    MAP_scrollTo(level_1_map, x, y);
     
-    VDP_drawImage(BG_B, &logo, 6, 0);
+    VDP_drawImage(BG_A, &logo, 6, 0);
     //VDP_drawImage(BG_A, &font, 0, 0);
     //VDP_drawImage(BG_A, &MainMenuLogo, 0, 4);
 
@@ -111,7 +117,7 @@ int main()
     SPR_init();
 
     PAL_setPalette(PAL2, car.palette->data, DMA);
-    jeep_cursor = SPR_addSprite(&car, 115, 125, TILE_ATTR(PAL2, TRUE, FALSE, FALSE));
+    jeep_cursor = SPR_addSprite(&car, 115, 125, TILE_ATTR(PAL3, TRUE, FALSE, FALSE));
     //SPR_setPosition(jeep_cursor, 115, 140);
     SPR_update();
 
@@ -125,7 +131,7 @@ int main()
     //PAL_fadeIn(0, 15, car.palette->data, 60, FALSE);
     //PAL_fadeIn(0, 15, logo.palette->data, 60, FALSE);
 
-    //XGM2_playPCM(&music1, sizeof(music1), SOUND_PCM_CH_AUTO);
+    //XGM2_playPCM(&music, sizeof(music), SOUND_PCM_CH_AUTO);
     XGM2_play(&music);
     //XGM2_setFMVolume(20);
     XGM2_setPSGVolume(100);
@@ -165,7 +171,9 @@ int main()
         // }
 		//VDP_drawTextOffset(BG_A, textArr2, 28, ind, 1, 2);
 		//drawCharCode('а');
-
+        MAP_scrollTo(level_1_map, x, y);
+        //x++;
+        y++;
         handleInput();
         SPR_update();
         SYS_doVBlankProcess();
