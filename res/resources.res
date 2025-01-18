@@ -1,6 +1,6 @@
 #test big maps
-TILESET Background "assets/images/maps/Tiled/tileset-map1-8x8-2p16c-u-8x8-1p16c-s.bmp" BEST ALL
-MAP level_map_1 "assets/images/maps/Tiled/map1.tmx" Background BEST 0
+TILESET Background "assets/images/maps/Tiled/tileset-map1-8x8-2p16c-u-8x8-1p16c-s.bmp" NONE ALL
+MAP level_map_1 "assets/images/maps/Tiled/map1.tmx" Background NONE 0
 PALETTE level_map_1_pallete "assets/images/maps/Tiled/tileset-map1-8x8-2p16c-u-8x8-1p16c-s.bmp"
 
 #SPRITE player
@@ -21,6 +21,6 @@ XGM2 music "assets/sounds/Main.vgm"
 WAV select_sfx "assets/sounds/select_sfx.wav" XGM2
 
 #Main Menu Sources
-SPRITE car "assets/images/sprites/car_menu_select_3_2.bmp" 3 2 FAST 1
+SPRITE car "assets/images/sprites/car_menu_select_3_2-8x8-1p4c-tc.bmp" 3 2 FAST 1
 
 #TILESET font_fa "assets/images/fonts/font_fa.bmp" BEST NONE
