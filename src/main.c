@@ -1,137 +1,85 @@
 #include <genesis.h>
 #include <resources.h>
-#include <font.h>
 
-u16 ind = TILE_USER_INDEX;
-Map* map1;
-Sprite* jeep_cursor;
+#define JEEP_SPEED 1
 
-u16 array_u16len(const u16 *arr)
-{
-    const u16 *src;
+typedef struct {
+    Vect2D_s16 position;
+    Vect2D_s16 velocity;
+    Sprite* sprite;
+} Jeep;
 
-    src = arr;
-    while (*src++);
+Jeep PlayerJeep = {
+    .position = { 100, 100 },
+    .velocity = { 0, 0 },
+    .sprite = NULL // Will be set later
+};
 
-    return (src - arr) - 1;
+void init_jeep() {
+    PAL_setPalette(PAL2, car.palette->data, DMA);
+    PlayerJeep.sprite = SPR_addSprite(&car, 
+        PlayerJeep.position.x, 
+        PlayerJeep.position.y,
+        TILE_ATTR(PAL2, 0, 0, 0));
 }
 
-void VDP_drawTextOffset(VDPPlane plane, const u16 *vram_offsets, u16 len, u16 first_tile, u16 x, u16 y)
-{
-    u16 i, pw, ph, curX;
-
-    // get the horizontal plane size (in cell)
-    pw = (plane == WINDOW)?windowWidth:planeWidth;
-    ph = (plane == WINDOW)?32:planeHeight;
-
-    // string outside plane --> exit
-    if ((x >= pw) || (y >= ph))
-        return;
-
-    // if string don't fit in plane, we cut it
-    if (len > (pw - x))
-        len = pw - x;
-    i = 0;
-	curX = 1 * x;
-	u16 curTileInd = 0;
-    u16 temp = 0;
-    s16 value_convert = -73;
-    while(i < len) {
-        temp = -(value_convert + vram_offsets[i]);
-        curTileInd = first_tile-1 + temp;
-        
-        if(curTileInd == first_tile - 1) // first tile is space char and minus one considered for new line
-        {
-            y++;
-            curX = x + 1;
-        }
-		
-		VDP_setTileMapXY(plane, TILE_ATTR_FULL(PAL0,0,FALSE,FALSE,curTileInd), curX, y);
-		i++;
-		curX--;
-	}
+Jeep* create_jeep(s16 x, s16 y) {
+    PAL_setPalette(PAL2, car.palette->data, DMA);
+    Jeep* jeep = (Jeep*)MEM_alloc(sizeof(Jeep));
+    jeep->position.x = x;
+    jeep->position.y = y;
+    jeep->velocity.x = 0;
+    jeep->velocity.y = 0;
+    jeep->sprite = SPR_addSprite(&car, x, y, TILE_ATTR(PAL2, 0, FALSE, FALSE));
+    return jeep;
 }
 
-// void drawCharCode(const char ch){
-// 	KLog_S1("fdsdf: ", (int)ch);
-// }
+Jeep* PlayerJeep2 = NULL;
 
-void handleInput()
+static void HandleInputs()
 {
-    VDP_clearText(1,1,5);
-    u16 value = JOY_readJoypad(JOY_1);
-	
-    if(value & BUTTON_UP) 
-    {
-        SPR_setPosition(jeep_cursor, 115, 125);
-        VDP_drawText("Up",1,1);
-    }
-    if(value & BUTTON_DOWN) 
-    {
-        SPR_setPosition(jeep_cursor, 115, 140);
-        VDP_drawText("Down",1,1);
-    }
-    if(value & BUTTON_START)
-    {
-        if(SPR_getPositionY(jeep_cursor) == 125)
-        {
-            VDP_clearText(18, 16, 11);
-        }
-        else
-        {
-            VDP_clearText(18, 18, 9);
-        }
+    u16 joy_state = JOY_readJoypad(JOY_1);
 
-        XGM2_playPCM(&select_sfx, sizeof(select_sfx), SOUND_PCM_CH_AUTO);
+    // Horizontal movement
+    if(joy_state & BUTTON_LEFT) {
+        KLog("LEFT CLICKED");
+        PlayerJeep2->position.x -= JEEP_SPEED;
+        SPR_setPosition(PlayerJeep2->sprite, PlayerJeep2->position.x, PlayerJeep2->position.y);
+    }
+    else if(joy_state & BUTTON_RIGHT) {
+        KLog("RIGHT CLICKED");
+        PlayerJeep2->position.x += JEEP_SPEED;
+        SPR_setPosition(PlayerJeep2->sprite, PlayerJeep2->position.x, PlayerJeep2->position.y);
+    }
+
+    // Vertical movement
+    if(joy_state & BUTTON_UP) {
+        KLog("UP CLICKED");
+        PlayerJeep2->position.y -= JEEP_SPEED;
+        SPR_setPosition(PlayerJeep2->sprite, PlayerJeep2->position.x, PlayerJeep2->position.y);
+    }
+    else if(joy_state & BUTTON_DOWN) {
+        KLog("DOWN CLICKED");
+        PlayerJeep2->position.y += JEEP_SPEED;
+        SPR_setPosition(PlayerJeep2->sprite, PlayerJeep2->position.x, PlayerJeep2->position.y);
     }
 }
 
-int x = 0, y = 0;
 int main()
 {
     VDP_init();
 
-    VDP_loadTileSet(&Background, ind, DMA);
-    PAL_setPalette(PAL3, level_map_1_pallete.data, DMA);
-    map1 = MAP_create(&level_map_1, BG_B, TILE_ATTR_FULL(PAL3,true,false,false,ind));
-    MAP_scrollTo(map1, x, y);
-    
-    //PAL_setPalette(PAL3, logo.palette->data, DMA);
-    //VDP_drawImage(BG_A, &logo, 6, 0);
-
     SPR_init();
 
-    PAL_setPalette(PAL2, car.palette->data, DMA);
-    jeep_cursor = SPR_addSprite(&car, 115, 125, TILE_ATTR(PAL2, TRUE, FALSE, FALSE));
-    SPR_update();
+    //PAL_setPalette(PAL2, car.palette->data, DMA);
+    //SPR_addSprite(&car, 10, 10, TILE_ATTR(PAL2, 0, FALSE, FALSE));
 
-    VDP_drawText("PLAY SELECT", 14, 14);
-    VDP_drawText("1 PLAYER", 18, 16);
-    VDP_drawText("2 PLAYERS", 18, 18);
-    VDP_drawText("Developed by Alireza_Kh74", 10, 21);
-
-    XGM2_play(&music);
-    XGM2_setPSGVolume(100);
-
-    //ind = 1300;
-    //VDP_loadTileSet(&font_fa, ind, DMA);
-
-    //u16 textArr[] = {35,51,60,22,31,3,72,18,20,2,4,55,20,59};//35, 51, 60, 22, 31, 2, 72, 18, 20, 2, 4, 55, 20, 58
-    //u16 textArr2[] = {65, 62, 66, 63};
-   
-    //VDP_drawTextOffset(BG_A, textArr, sizeof(textArr)/sizeof(textArr[0]), ind, 26, 23);
-    //VDP_drawTextOffset(BG_A, textArr2, sizeof(textArr2)/sizeof(textArr2[0]), ind, 22, 26);
+    // init_jeep();
+    PlayerJeep2 = create_jeep(10, 10);
 
     while(1)
     {
-        MAP_scrollTo(map1, x, y);
-        //x++;
-        y++;
-        if(y > 2565)
-        {
-            y = 0;
-        }
-        handleInput();
+        HandleInputs();
         SPR_update();
         SYS_doVBlankProcess();
     }

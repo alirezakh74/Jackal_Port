@@ -3,5 +3,8 @@
     "${env:GDK}\\res",
     "res",
     "inc"
-]
+],
+"files.associations": {
+    "font.h": "c"
+}
 }
