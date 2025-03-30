@@ -21,6 +21,6 @@ XGM2 music "assets/sounds/Main.vgm"
 WAV select_sfx "assets/sounds/select_sfx.wav" XGM2
 
 #Main Menu Sources
-SPRITE car "assets/images/sprites/car_menu_select_3_2-8x8-1p4c-tc.bmp" 3 2 FAST 1
-
+#SPRITE car "assets/images/sprites/car_menu_select_3_2-8x8-1p4c-tc.bmp" 3 2 FAST 1
+SPRITE jeep "assets/images/sprites/jeep-transparent-8x8-1p16c-u.bmp" 4 4 FAST 50
 #TILESET font_fa "assets/images/fonts/font_fa.bmp" BEST NONE
