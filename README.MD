@@ -1,3 +1,3 @@
-# My Awesome Game
+# Jackal MD
 
-This is My Awesome 16 Bit Cartridge game for mega Drive
+port of Jackal game for Mega Drive
