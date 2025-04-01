@@ -9,5 +9,6 @@ extern const MapDefinition level_map_1;
 extern const Palette level_map_1_pallete;
 extern const Image logo;
 extern const SpriteDefinition jeep;
+extern const SpriteDefinition bullet;
 
 #endif // _RES_RESOURCES_H_
