@@ -2,8 +2,20 @@
 #include <resources.h>
 
 // Use fixed-point for precise movement
-#define JEEP_SPEED FIX32(0.5)       // Base speed
+#define JEEP_SPEED FIX32(1.0)       // Base speed
 #define DIAGONAL_FACTOR FIX32(0.7071) // 1/sqrt(2)
+
+typedef enum {
+    RIHGT = 0,
+    UP_RIGHT = 1,
+    UP = 2,
+    UP_LEFT = 3,
+    LEFT = 4,
+    DOWN_LEFT = 5,
+    DOWN = 6,
+    DOWN_RIGHT = 7,
+    DIR_COUNTER = 8
+} DIR;
 
 typedef struct {
     Vect2D_f32 position;
@@ -35,6 +47,12 @@ Jeep* create_jeep(s16 x, s16 y) {
 }
 
 Jeep* PlayerJeep2 = NULL;
+DIR CurrentJeepDir = UP;
+//DIR PreviusJeepDir = UP;
+DIR TargetJeepDir = UP;
+bool ShouldIncrease = TRUE;
+u32 StartTime = 0;
+u32 ElapsedTime = 0;
 
 static void HandleInputs() 
 {
@@ -47,14 +65,14 @@ static void HandleInputs()
 
     // Horizontal movement
     if(joy_state & BUTTON_LEFT) {
-        KLog("LEFT CLICKED");
+        //KLog("LEFT CLICKED");
         move_x = -JEEP_SPEED; 
         //flip_h = true;
         //SPR_setHFlip(PlayerJeep2->sprite, true);
         //SPR_setAnim(PlayerJeep2->sprite, 0);
     }
     else if(joy_state & BUTTON_RIGHT) {
-        KLog("RIGHT CLICKED");
+        //KLog("RIGHT CLICKED");
         move_x = JEEP_SPEED;
         //flip_h = false;
         //SPR_setHFlip(PlayerJeep2->sprite, false);
@@ -63,12 +81,12 @@ static void HandleInputs()
 
     // Vertical movement
     if(joy_state & BUTTON_UP) {
-        KLog("UP CLICKED");
+        //KLog("UP CLICKED");
         move_y = -JEEP_SPEED;
         //flip_v = true;
     }
     else if(joy_state & BUTTON_DOWN) {
-        KLog("DOWN CLICKED");
+        //KLog("DOWN CLICKED");
         move_y = JEEP_SPEED;
         //flip_v = false;
     }
@@ -78,15 +96,175 @@ static void HandleInputs()
         move_x = fix32Mul(move_x, DIAGONAL_FACTOR);
         move_y = fix32Mul(move_y, DIAGONAL_FACTOR);
 
-        KLog_S1("int of move_x is = ", fix32Int(move_x));
-        KLog_S1("frac of move_x is = ", fix32Frac(move_x));
-        KLog_S1("int of move_y is = ", fix32Int(move_y));
-        KLog_S1("frac of move_y is = ", fix32Frac(move_y));
+        // KLog_S1("int of move_x is = ", fix32Int(move_x));
+        // KLog_S1("frac of move_x is = ", fix32Frac(move_x));
+        // KLog_S1("int of move_y is = ", fix32Int(move_y));
+        // KLog_S1("frac of move_y is = ", fix32Frac(move_y));
     }
 
     // Apply movement
     PlayerJeep2->position.x += move_x;
     PlayerJeep2->position.y += move_y;
+
+    if(move_x > 0)
+    {
+        //SPR_setAnimAndFrame(PlayerJeep2->sprite, 0, 3);
+        TargetJeepDir = RIHGT;
+    }
+    if(move_x < 0)
+    {
+        //SPR_setAnimAndFrame(PlayerJeep2->sprite, 1, 0);
+        TargetJeepDir = LEFT;
+    }
+    if(move_y > 0)
+    {
+        //SPR_setAnimAndFrame(PlayerJeep2->sprite, 1, 2);
+        TargetJeepDir = DOWN;
+    }
+    if(move_y < 0)
+    {
+        //SPR_setAnimAndFrame(PlayerJeep2->sprite, 0, 1);
+        TargetJeepDir = UP;
+    }
+
+    if(move_x < 0 && move_y < 0)
+    {
+        //SPR_setAnimAndFrame(PlayerJeep2->sprite, 0, 0);
+        TargetJeepDir = UP_LEFT;
+    }
+    if(move_x < 0 && move_y > 0)
+    {
+        //SPR_setAnimAndFrame(PlayerJeep2->sprite, 1, 1);
+        TargetJeepDir = DOWN_LEFT;
+    }
+    if(move_x > 0 && move_y < 0)
+    {
+        //SPR_setAnimAndFrame(PlayerJeep2->sprite, 0, 2);
+        TargetJeepDir = UP_RIGHT;
+    }
+    if(move_x > 0 && move_y > 0)
+    {
+        //SPR_setAnimAndFrame(PlayerJeep2->sprite, 1, 3);
+        TargetJeepDir = DOWN_RIGHT;
+    }
+
+    s8 DeltaDir = TargetJeepDir - CurrentJeepDir;
+    bool IsDeltaDirPositive = (DeltaDir > 0);
+    DeltaDir = abs(DeltaDir);
+
+    s8 CurrentIndex = CurrentJeepDir;
+
+    if(DeltaDir <= 4)
+    {
+        if(IsDeltaDirPositive)
+        {
+            // index should increase
+            ShouldIncrease = TRUE;
+            if(CurrentJeepDir == 3 && TargetJeepDir == 7)
+            {
+                ShouldIncrease = FALSE;
+            }
+        }
+        else
+        {
+            // index should decrease
+            ShouldIncrease = FALSE;
+            if(CurrentJeepDir == 7 && TargetJeepDir == 3)
+            {
+                ShouldIncrease = TRUE;
+            }
+        }
+    }
+    else if(DeltaDir > 4)
+    {
+        if(IsDeltaDirPositive)
+        {
+            // index should increase
+            ShouldIncrease = FALSE;
+        }
+        else
+        {
+            // index should decrease
+            ShouldIncrease = TRUE;
+        }
+    }
+
+    //KLog_S1("delta dir = ", DeltaDir);
+    ElapsedTime = getTick() / 60;
+    if(ElapsedTime - StartTime >= 1)
+    {
+        if(move_x != 0 || move_y != 0)
+        {
+            //KLog_S1("timer = ", StartTime);
+            StartTime = ElapsedTime;
+
+            if(CurrentJeepDir != TargetJeepDir)
+            {
+                if(ShouldIncrease)
+                {
+                    KLog_S1("b Current index = ", CurrentIndex);
+                    CurrentIndex++;
+                    if(CurrentIndex > (DIR_COUNTER - 1))
+                    {
+                        CurrentIndex = 0;
+                    }
+                    KLog_S1("a Current index = ", CurrentIndex);
+                }
+                else
+                {
+                    KLog_S1("b Current index = ", CurrentIndex);
+                    CurrentIndex--;
+                    if(CurrentIndex < 0)
+                    {
+                        CurrentIndex = DIR_COUNTER - 1;
+                    }
+                    KLog_S1("a Current index = ", CurrentIndex);
+                }
+            }
+
+            switch (CurrentIndex)
+            {
+            case 0:
+                SPR_setAnimAndFrame(PlayerJeep2->sprite, 0, 3);
+                CurrentJeepDir = RIHGT;
+                break;
+            case 1:
+                SPR_setAnimAndFrame(PlayerJeep2->sprite, 0, 2);
+                CurrentJeepDir = UP_RIGHT;
+                break;
+            case 2:
+                SPR_setAnimAndFrame(PlayerJeep2->sprite, 0, 1);
+                CurrentJeepDir = UP;
+                break;
+            case 3:
+                SPR_setAnimAndFrame(PlayerJeep2->sprite, 0, 0);
+                CurrentJeepDir = UP_LEFT;
+                break;
+            case 4:
+                SPR_setAnimAndFrame(PlayerJeep2->sprite, 1, 0);
+                CurrentJeepDir = LEFT;
+                break;
+            case 5:
+                SPR_setAnimAndFrame(PlayerJeep2->sprite, 1, 1);
+                CurrentJeepDir = DOWN_LEFT;
+                break;
+            case 6:
+                SPR_setAnimAndFrame(PlayerJeep2->sprite, 1, 2);
+                CurrentJeepDir = DOWN;
+                break;
+            case 7:
+                SPR_setAnimAndFrame(PlayerJeep2->sprite, 1, 3);
+                CurrentJeepDir = DOWN_RIGHT;
+                break;
+            default:
+                break;
+            }
+        }
+
+        //KLog_S1("Current index = ", CurrentIndex);
+
+        //PreviusJeepDir = CurrentJeepDir;
+    }
     
     //SPR_setVFlip(PlayerJeep2->sprite, flip_v);
     //SPR_setHFlip(PlayerJeep2->sprite, flip_h);
@@ -117,36 +295,22 @@ int main()
 
     //init_jeep();
     PlayerJeep2 = create_jeep(150, 100);
-    // SPR_setAnim(PlayerJeep2->sprite, 0);
-    // SPR_setAnimationLoop(PlayerJeep2->sprite, FALSE);
-    // SPR_setAutoAnimation(PlayerJeep2->sprite, FALSE);
-    // SPR_setFrame(PlayerJeep2->sprite, 1);
+    SPR_setAnim(PlayerJeep2->sprite, 0);
+    SPR_setAnimationLoop(PlayerJeep2->sprite, FALSE);
+    SPR_setAutoAnimation(PlayerJeep2->sprite, FALSE);
+    SPR_setFrame(PlayerJeep2->sprite, 1);
 
-    fix16 fixed16_number = FIX16(0.0);
-    char fixed16_text[5];
-    sprintf(fixed16_text, "%10i", fix32ToInt(fixed16_number));
-    VDP_drawTextBG(BG_B, fixed16_text, 0, 0);
+    StartTime = getTick() / 60;
 
     while(1)
     {
-        sprintf(fixed16_text, "%5i", fix16ToInt(fixed16_number));
-        VDP_drawTextBG(BG_A, fixed16_text, 0, 0);
-
-        sprintf(fixed16_text, "%5i", fix16ToInt(fix16Int(fixed16_number)));
-        VDP_drawTextBG(BG_A, fixed16_text, 0, 3);
-
-        sprintf(fixed16_text, "%5i", fix16Frac(fixed16_number));
-        VDP_drawTextBG(BG_A, fixed16_text, 0, 6);
-
-        fixed16_number += JEEP_SPEED;
-
-        MAP_scrollTo(map1, x, y);
+        //MAP_scrollTo(map1, x, y);
         //x++;
-        y--;
-        if(y < 0)
-        {
-            y = 2565;
-        }
+        //y--;
+        // if(y < 0)
+        // {
+        //     y = 2565;
+        // }
 
         HandleInputs();
         SPR_update();
