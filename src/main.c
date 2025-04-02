@@ -19,10 +19,11 @@ typedef enum
 } DIR;
 
 // Bullet constants
-#define BULLET_SPEED FIX32(4.0)
+#define BULLET_SPEED FIX32(5.0)
 #define MAX_BULLETS 8
 #define FIRE_RATE 10            // frames between shots
 #define BULLET_RANGE FIX32(100) // range that bullet could travel
+#define END_FIRE_SPRITE_RATE 8 // frames for show last frame of bullet that hit ground or obstacle 
 s16 Cooldown = FIRE_RATE;
 
 typedef struct
@@ -31,6 +32,9 @@ typedef struct
     Vect2D_f32 velocity;
     fix32 start_y_pos;
     Sprite *sprite;
+    u8 current_frame;
+    s16 ended_travel_frames; // frames to show frame 1 of bullet sprite(end of bullet hit ground or obstacle)
+    bool is_travel_ended;
     bool active;
 } Bullet;
 
@@ -63,8 +67,8 @@ Jeep *create_jeep(s16 x, s16 y)
 {
     PAL_setPalette(PAL2, jeep.palette->data, DMA);
     Jeep *new_jeep = (Jeep *)MEM_alloc(sizeof(Jeep));
-    new_jeep->position.x = x;
-    new_jeep->position.y = y;
+    new_jeep->position.x = FIX32(x);
+    new_jeep->position.y = FIX32(y);
     new_jeep->sprite = SPR_addSprite(&jeep, x, y, TILE_ATTR(PAL2, FALSE, FALSE, FALSE));
     return new_jeep;
 }
@@ -82,9 +86,13 @@ void initBullets()
 {
     for (u8 i = 0; i < MAX_BULLETS; i++)
     {
+        bullets[i].current_frame = 0;
+        bullets[i].is_travel_ended = FALSE;
         bullets[i].active = FALSE;
         PAL_setPalette(PAL3, bullet.palette->data, DMA);
         bullets[i].sprite = SPR_addSprite(&bullet, 0, 0, TILE_ATTR(PAL3, TRUE, 0, 0));
+        SPR_setAnimationLoop(bullets[i].sprite, FALSE);
+        SPR_setAutoAnimation(bullets[i].sprite, FALSE);
         SPR_setVisibility(bullets[i].sprite, HIDDEN);
     }
 }
@@ -101,6 +109,7 @@ void fireBullet()
     // for(u8 i = 0; i < MAX_BULLETS; i++) {
     if (!bullets[CurrentBulletIndex].active)
     {
+        bullets[CurrentBulletIndex].is_travel_ended = FALSE;
         bullets[CurrentBulletIndex].position.x = PlayerJeep2->position.x + FIX32(7);
         bullets[CurrentBulletIndex].position.y = PlayerJeep2->position.y + FIX32(8);
         bullets[CurrentBulletIndex].start_y_pos = bullets[CurrentBulletIndex].position.y;
@@ -124,22 +133,40 @@ void updateBullets()
 {
     for (u8 i = 0; i < MAX_BULLETS; i++)
     {
+        if(bullets[i].current_frame == 1)
+        {
+            // add one frame to nded_travel_frames
+            bullets[i].ended_travel_frames += 1;
+
+            if(bullets[i].ended_travel_frames >= END_FIRE_SPRITE_RATE)
+            {
+                bullets[i].active = FALSE;
+                SPR_setFrame(bullets[i].sprite, 0);
+                SPR_setVisibility(bullets[i].sprite, HIDDEN);
+                bullets[i].current_frame = 0;
+                return;
+            }
+        }
+
         if (bullets[i].active)
         {
             // Update position
-            bullets[i].position.x += bullets[i].velocity.x;
-            bullets[i].position.y += bullets[i].velocity.y;
-
-            // Update sprite position
-            SPR_setPosition(bullets[i].sprite,
-                            fix32ToInt(bullets[i].position.x),
-                            fix32ToInt(bullets[i].position.y));
+            if(!bullets[i].is_travel_ended)
+            {
+                bullets[i].position.x += bullets[i].velocity.x;
+                bullets[i].position.y += bullets[i].velocity.y;
+                // Update sprite position
+                SPR_setPosition(bullets[i].sprite,
+                    fix32ToInt(bullets[i].position.x),
+                    fix32ToInt(bullets[i].position.y));
+            }
 
             // Check range
             if ((bullets[i].start_y_pos - bullets[i].position.y) > BULLET_RANGE)
             {
-                bullets[i].active = FALSE;
-                SPR_setVisibility(bullets[i].sprite, HIDDEN);
+                //bullets[i].active = FALSE;
+                bullets[i].is_travel_ended = TRUE;
+                //SPR_setVisibility(bullets[i].sprite, HIDDEN);
             }
             // Check screen boundaries
             if (bullets[i].position.x > FIX32(320) ||
@@ -149,6 +176,13 @@ void updateBullets()
             {
                 bullets[i].active = FALSE;
                 SPR_setVisibility(bullets[i].sprite, HIDDEN);
+            }
+
+            if(bullets[i].is_travel_ended && (bullets[i].current_frame != 1))
+            {
+                //bullets[i].sprite = FALSE;
+                bullets[i].current_frame = 1;
+                SPR_setFrame(bullets[i].sprite, 1);
             }
         }
     }
