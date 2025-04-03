@@ -26,4 +26,5 @@ SPRITE jeep "assets/images/sprites/jeep-transparent-8x8-1p16c-t.bmp" 4 4 FAST 50
 #TILESET font_fa "assets/images/fonts/font_fa.bmp" BEST NONE
 
 SPRITE bullet "assets/images/sprites/jeep_bullet-8x8-1p16c-t.bmp" 2 2 FAST 50
+SPRITE grenade "assets/images/sprites/grenade-8x8-1p16c-t.bmp" 4 4 FAST 50
 

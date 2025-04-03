@@ -1,194 +1,67 @@
 #include <genesis.h>
 #include <resources.h>
+#include "globals.h"
+#include "GameObjects/jeep.h"
+#include "GameObjects/projectile.h"
 
-// Use fixed-point for precise movement
-#define JEEP_SPEED FIX32(1.0)         // Base speed
-#define DIAGONAL_FACTOR FIX32(0.7071) // 1/sqrt(2)
+void HandleInputs();
 
-typedef enum
+u16 ind = TILE_USER_INDEX;
+int x = 0, y = 0;
+Map *map1;
+
+int main()
 {
-    RIHGT = 0,
-    UP_RIGHT = 1,
-    UP = 2,
-    UP_LEFT = 3,
-    LEFT = 4,
-    DOWN_LEFT = 5,
-    DOWN = 6,
-    DOWN_RIGHT = 7,
-    DIR_COUNTER = 8
-} DIR;
+    VDP_init();
 
-// Bullet constants
-#define BULLET_SPEED FIX32(5.0)
-#define MAX_BULLETS 8
-#define FIRE_RATE 10            // frames between shots
-#define BULLET_RANGE FIX32(100) // range that bullet could travel
-#define END_FIRE_SPRITE_RATE 8 // frames for show last frame of bullet that hit ground or obstacle 
-s16 Cooldown = FIRE_RATE;
+    VDP_loadTileSet(&Background, ind, DMA);
+    PAL_setPalette(PAL1, level_map_1_pallete.data, DMA);
+    map1 = MAP_create(&level_map_1, BG_B, TILE_ATTR_FULL(PAL1, FALSE, FALSE, FALSE, ind));
+    MAP_scrollTo(map1, x, 2565);
 
-typedef struct
-{
-    Vect2D_f32 position;
-    Vect2D_f32 velocity;
-    fix32 start_y_pos;
-    Sprite *sprite;
-    u8 current_frame;
-    s16 ended_travel_frames; // frames to show frame 1 of bullet sprite(end of bullet hit ground or obstacle)
-    bool is_travel_ended;
-    bool active;
-} Bullet;
+    SPR_init();
 
-Bullet bullets[MAX_BULLETS];
-s16 CurrentBulletIndex = 0;
+    // PAL_setPalette(PAL2, car.palette->data, DMA);
+    // SPR_addSprite(&car, 10, 10, TILE_ATTR(PAL2, 0, FALSE, FALSE));
 
-typedef struct
-{
-    Vect2D_f32 position;
-    Vect2D_f32 velocity;
-    Sprite *sprite;
-} Jeep;
+    // create bullets
+    initBullets(BULLET);
 
-Jeep PlayerJeep = {
-    .position = {100, 100},
-    .velocity = {0, 0},
-    .sprite = NULL // Will be set later
-};
+    // init_jeep();
+    PlayerJeep2 = create_jeep(150, 100);
+    SPR_setAnim(PlayerJeep2->sprite, 0);
+    SPR_setAnimationLoop(PlayerJeep2->sprite, FALSE);
+    SPR_setAutoAnimation(PlayerJeep2->sprite, FALSE);
+    SPR_setFrame(PlayerJeep2->sprite, 1);
 
-void init_jeep()
-{
-    PAL_setPalette(PAL2, jeep.palette->data, DMA);
-    PlayerJeep.sprite = SPR_addSprite(&jeep,
-                                      PlayerJeep.position.x,
-                                      PlayerJeep.position.y,
-                                      TILE_ATTR(PAL2, 0, 0, 0));
-}
+    XGM2_play(&music);
 
-Jeep *create_jeep(s16 x, s16 y)
-{
-    PAL_setPalette(PAL2, jeep.palette->data, DMA);
-    Jeep *new_jeep = (Jeep *)MEM_alloc(sizeof(Jeep));
-    new_jeep->position.x = FIX32(x);
-    new_jeep->position.y = FIX32(y);
-    new_jeep->sprite = SPR_addSprite(&jeep, x, y, TILE_ATTR(PAL2, FALSE, FALSE, FALSE));
-    return new_jeep;
-}
+    StartTime = getTick() / 60;
 
-Jeep *PlayerJeep2 = NULL;
-DIR CurrentJeepDir = UP;
-// DIR PreviusJeepDir = UP;
-DIR TargetJeepDir = UP;
-bool ShouldIncrease = TRUE;
-u32 StartTime = 0;
-u32 ElapsedTime = 0;
-
-// Initialize bullets
-void initBullets()
-{
-    for (u8 i = 0; i < MAX_BULLETS; i++)
+    while (1)
     {
-        bullets[i].current_frame = 0;
-        bullets[i].is_travel_ended = FALSE;
-        bullets[i].active = FALSE;
-        PAL_setPalette(PAL3, bullet.palette->data, DMA);
-        bullets[i].sprite = SPR_addSprite(&bullet, 0, 0, TILE_ATTR(PAL3, TRUE, 0, 0));
-        SPR_setAnimationLoop(bullets[i].sprite, FALSE);
-        SPR_setAutoAnimation(bullets[i].sprite, FALSE);
-        SPR_setVisibility(bullets[i].sprite, HIDDEN);
-    }
-}
+        // MAP_scrollTo(map1, x, y);
+        // x++;
+        // y--;
+        //  if(y < 0)
+        //  {
+        //      y = 2565;
+        //  }
 
-// Fire a bullet
-void fireBullet()
-{
-    CurrentBulletIndex++;
-    if (CurrentBulletIndex >= MAX_BULLETS)
-    {
-        CurrentBulletIndex = 0;
-    }
-
-    // for(u8 i = 0; i < MAX_BULLETS; i++) {
-    if (!bullets[CurrentBulletIndex].active)
-    {
-        bullets[CurrentBulletIndex].is_travel_ended = FALSE;
-        bullets[CurrentBulletIndex].position.x = PlayerJeep2->position.x + FIX32(7);
-        bullets[CurrentBulletIndex].position.y = PlayerJeep2->position.y + FIX32(8);
-        bullets[CurrentBulletIndex].start_y_pos = bullets[CurrentBulletIndex].position.y;
-
-        // Set bullet direction (example: right direction)
-        bullets[CurrentBulletIndex].velocity.x = FIX32(0);
-        bullets[CurrentBulletIndex].velocity.y = -BULLET_SPEED;
-
-        bullets[CurrentBulletIndex].active = TRUE;
-        SPR_setPosition(bullets[CurrentBulletIndex].sprite,
-                        fix32ToInt(bullets[CurrentBulletIndex].position.x),
-                        fix32ToInt(bullets[CurrentBulletIndex].position.y));
-        SPR_setVisibility(bullets[CurrentBulletIndex].sprite, VISIBLE);
-        return;
-    }
-    // }
-}
-
-// Update bullets
-void updateBullets()
-{
-    for (u8 i = 0; i < MAX_BULLETS; i++)
-    {
-        if(bullets[i].current_frame == 1)
+        if (Cooldown > 0)
         {
-            // add one frame to nded_travel_frames
-            bullets[i].ended_travel_frames += 1;
-
-            if(bullets[i].ended_travel_frames >= END_FIRE_SPRITE_RATE)
-            {
-                bullets[i].active = FALSE;
-                SPR_setFrame(bullets[i].sprite, 0);
-                SPR_setVisibility(bullets[i].sprite, HIDDEN);
-                bullets[i].current_frame = 0;
-                return;
-            }
+            Cooldown--;
         }
-
-        if (bullets[i].active)
-        {
-            // Update position
-            if(!bullets[i].is_travel_ended)
-            {
-                bullets[i].position.x += bullets[i].velocity.x;
-                bullets[i].position.y += bullets[i].velocity.y;
-                // Update sprite position
-                SPR_setPosition(bullets[i].sprite,
-                    fix32ToInt(bullets[i].position.x),
-                    fix32ToInt(bullets[i].position.y));
-            }
-
-            // Check range
-            if ((bullets[i].start_y_pos - bullets[i].position.y) > BULLET_RANGE)
-            {
-                //bullets[i].active = FALSE;
-                bullets[i].is_travel_ended = TRUE;
-                //SPR_setVisibility(bullets[i].sprite, HIDDEN);
-            }
-            // Check screen boundaries
-            if (bullets[i].position.x > FIX32(320) ||
-                bullets[i].position.x < FIX32(0) ||
-                bullets[i].position.y > FIX32(240) ||
-                bullets[i].position.y < FIX32(0))
-            {
-                bullets[i].active = FALSE;
-                SPR_setVisibility(bullets[i].sprite, HIDDEN);
-            }
-
-            if(bullets[i].is_travel_ended && (bullets[i].current_frame != 1))
-            {
-                //bullets[i].sprite = FALSE;
-                bullets[i].current_frame = 1;
-                SPR_setFrame(bullets[i].sprite, 1);
-            }
-        }
+        HandleInputs();
+        updateBullets();
+        SPR_update();
+        SYS_doVBlankProcess();
     }
+
+    return (0);
 }
 
-static void HandleInputs()
+void HandleInputs()
 {
     u16 joy_state = JOY_readJoypad(JOY_1);
     fix32 move_x = 0;
@@ -200,7 +73,7 @@ static void HandleInputs()
     if (joy_state & BUTTON_B && Cooldown <= 0)
     {
         // KLog("Button B clicked");
-        fireBullet();
+        fireBullet(PlayerJeep2->position);
         Cooldown = FIRE_RATE;
     }
 
@@ -413,59 +286,4 @@ static void HandleInputs()
     SPR_setPosition(PlayerJeep2->sprite,
                     fix32ToInt(PlayerJeep2->position.x),
                     fix32ToInt(PlayerJeep2->position.y));
-}
-
-u16 ind = TILE_USER_INDEX;
-int x = 0, y = 0;
-Map *map1;
-
-int main()
-{
-    VDP_init();
-
-    VDP_loadTileSet(&Background, ind, DMA);
-    PAL_setPalette(PAL1, level_map_1_pallete.data, DMA);
-    map1 = MAP_create(&level_map_1, BG_B, TILE_ATTR_FULL(PAL1, FALSE, FALSE, FALSE, ind));
-    MAP_scrollTo(map1, x, 2565);
-
-    SPR_init();
-
-    // PAL_setPalette(PAL2, car.palette->data, DMA);
-    // SPR_addSprite(&car, 10, 10, TILE_ATTR(PAL2, 0, FALSE, FALSE));
-
-    // create bullets
-    initBullets();
-
-    // init_jeep();
-    PlayerJeep2 = create_jeep(150, 100);
-    SPR_setAnim(PlayerJeep2->sprite, 0);
-    SPR_setAnimationLoop(PlayerJeep2->sprite, FALSE);
-    SPR_setAutoAnimation(PlayerJeep2->sprite, FALSE);
-    SPR_setFrame(PlayerJeep2->sprite, 1);
-
-    XGM2_play(&music);
-
-    StartTime = getTick() / 60;
-
-    while (1)
-    {
-        // MAP_scrollTo(map1, x, y);
-        // x++;
-        // y--;
-        //  if(y < 0)
-        //  {
-        //      y = 2565;
-        //  }
-
-        if (Cooldown > 0)
-        {
-            Cooldown--;
-        }
-        HandleInputs();
-        updateBullets();
-        SPR_update();
-        SYS_doVBlankProcess();
-    }
-
-    return (0);
 }
